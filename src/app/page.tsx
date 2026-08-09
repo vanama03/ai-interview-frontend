@@ -12,13 +12,25 @@ interface Message {
   timestamp: string;
 }
 
+interface CandidateProfile {
+  id: string;
+  name: string;
+  jobRole: string;
+  yearsExperience: number;
+  education: string;
+  cohortCompletion: number;
+  commitDays: number;
+  firstTryPasses: number;
+  skippedTopic: string;
+}
+
 export default function TechMentorAIDashboard() {
   // Login & Session State
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [loginId, setLoginId] = useState('CAND-001');
 
-  // Candidate Data (CAND-001 / Sarah Johnson)
-  const candidate = {
+  // Dynamic Candidate State (Defaults to CAND-001)
+  const [candidate, setCandidate] = useState<CandidateProfile>({
     id: "CAND-001",
     name: "Sarah Johnson",
     jobRole: "Senior Data Engineer",
@@ -28,7 +40,7 @@ export default function TechMentorAIDashboard() {
     commitDays: 28,
     firstTryPasses: 20,
     skippedTopic: "Day 29: Monitoring, Logging & Observability"
-  };
+  });
 
   // Chat & Voice States
   const [messages, setMessages] = useState<Message[]>([]);
@@ -90,20 +102,47 @@ export default function TechMentorAIDashboard() {
     recognition.start();
   };
 
-  // Login Handler
+  // Login Handler supporting CAND-001 to CAND-020 (case-insensitive)
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
-    if (loginId.trim().toUpperCase() === 'CAND-001') {
+    
+    const normalizedInput = loginId.trim().toUpperCase();
+    // Validates CAND-001 through CAND-020 or CAND-1 through CAND-20
+    const candidateIdRegex = /^CAND-(0?[1-9]|1[0-9]|20)$/;
+
+    if (candidateIdRegex.test(normalizedInput)) {
+      // Format standard ID padding (e.g., CAND-001, CAND-015)
+      const numberPart = normalizedInput.split('-')[1].padStart(3, '0');
+      const formattedCandidateId = `CAND-${numberPart}`;
+
+      // Derive candidate metadata dynamically based on ID
+      const candidateName = formattedCandidateId === 'CAND-001' ? "Sarah Johnson" : `Candidate ${formattedCandidateId}`;
+      
+      const newProfile: CandidateProfile = {
+        id: formattedCandidateId,
+        name: candidateName,
+        jobRole: formattedCandidateId === 'CAND-001' ? "Senior Data Engineer" : "AI/ML Software Engineer",
+        yearsExperience: formattedCandidateId === 'CAND-001' ? 9 : 5,
+        education: "MS Computer Science",
+        cohortCompletion: 30,
+        commitDays: 28,
+        firstTryPasses: 20,
+        skippedTopic: "Day 29: Monitoring, Logging & Observability"
+      };
+
+      setCandidate(newProfile);
       setIsLoggedIn(true);
+
       const welcomeMsg: Message = {
         sender: 'agent',
-        text: `Welcome back, Sarah! I see you completed 30 of 31 cohort missions. Today we'll focus on your flagged topic: ${candidate.skippedTopic}. Can you explain how you would design an observability pipeline for vector retrieval latency?`,
+        text: `Welcome back, ${newProfile.name}! Authenticated session active for ${newProfile.id}. Today we'll focus on your flagged topic: ${newProfile.skippedTopic}. Can you explain how you would design an observability pipeline for vector retrieval latency?`,
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
       };
+      
       setMessages([welcomeMsg]);
       speakText(welcomeMsg.text);
     } else {
-      alert('Invalid Candidate ID. Please use "CAND-001" to log in.');
+      alert('Invalid Candidate ID. Please enter a valid ID between CAND-001 and CAND-020.');
     }
   };
 
@@ -116,7 +155,7 @@ export default function TechMentorAIDashboard() {
     setIsSpeaking(false);
   };
 
-  // Updated Send Message Handler (Integrates backend payload & robust fallback)
+  // Send Message Handler
   const sendMessage = async () => {
     if (!inputMessage.trim() || isLoading) return;
 
@@ -132,7 +171,7 @@ export default function TechMentorAIDashboard() {
     setIsLoading(true);
 
     try {
-      // 1. Call Backend API with Full Context Payload
+      // 1. Call Backend API with Dynamic Candidate Context Payload
       const res = await fetch('/api/interview', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -169,10 +208,10 @@ export default function TechMentorAIDashboard() {
     } catch (err) {
       console.error("Backend dispatch error:", err);
       
-      // Fallback response if local API endpoint fails
+      // Fallback response if API endpoint fails
       const fallbackMsg: Message = {
         sender: 'agent',
-        text: "I received your response! Let's build on that: How do you handle vector database indexing strategies during heavy real-time write loads?",
+        text: `I received your response, ${candidate.name}! Let's build on that: How do you handle vector database indexing strategies during heavy real-time write loads?`,
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
       };
       
@@ -204,7 +243,7 @@ export default function TechMentorAIDashboard() {
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-3 bg-slate-900 border border-slate-800 px-4 py-2 rounded-xl">
               <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-cyan-500 to-purple-500 flex items-center justify-center text-slate-950 font-bold text-xs">
-                SJ
+                {candidate.name.split(' ').map(n => n[0]).join('').substring(0, 2)}
               </div>
               <div className="text-right">
                 <p className="text-xs font-bold text-white">{candidate.name}</p>
@@ -244,15 +283,15 @@ export default function TechMentorAIDashboard() {
                   type="text"
                   value={loginId}
                   onChange={(e) => setLoginId(e.target.value)}
-                  placeholder="Enter Candidate ID (e.g. CAND-001)"
+                  placeholder="Enter Candidate ID (e.g. CAND-001 to CAND-020)"
                   className="w-full bg-slate-800/90 border border-slate-700 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-cyan-500 font-mono"
                   required
                 />
               </div>
 
               <div className="p-3 rounded-xl bg-cyan-500/5 border border-cyan-500/20 text-xs font-mono text-cyan-300 flex items-center justify-between">
-                <span>Demo Account:</span>
-                <span className="font-bold bg-cyan-500/20 px-2 py-0.5 rounded text-cyan-200">CAND-001</span>
+                <span>Accepted IDs:</span>
+                <span className="font-bold bg-cyan-500/20 px-2 py-0.5 rounded text-cyan-200">CAND-001 to CAND-020</span>
               </div>
 
               <button
@@ -273,7 +312,7 @@ export default function TechMentorAIDashboard() {
             <div className="md:col-span-2 space-y-3">
               <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-mono">
                 <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                VERIFIED CANDIDATE SESSION
+                VERIFIED CANDIDATE SESSION ({candidate.id})
               </div>
               <h2 className="text-2xl font-bold text-white">Welcome back, {candidate.name}</h2>
               <p className="text-xs text-slate-400">
