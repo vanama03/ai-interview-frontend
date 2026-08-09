@@ -29,14 +29,14 @@ export default function TechMentorAIDashboard() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [loginId, setLoginId] = useState('CAND-001');
 
-  // Dynamic Candidate State (Defaults to CAND-001)
+  // Dynamic Candidate State
   const [candidate, setCandidate] = useState<CandidateProfile>({
     id: "CAND-001",
     name: "Sarah Johnson",
     jobRole: "Senior Data Engineer",
     yearsExperience: 9,
     education: "MS Computer Science",
-    cohortCompletion: 30, // 30 of 31 days
+    cohortCompletion: 30,
     commitDays: 28,
     firstTryPasses: 20,
     skippedTopic: "Day 29: Monitoring, Logging & Observability"
@@ -102,20 +102,24 @@ export default function TechMentorAIDashboard() {
     recognition.start();
   };
 
-  // Login Handler supporting CAND-001 to CAND-020 (case-insensitive)
+  // Login Handler supporting ALL Edge Cases (cand-001, CAND-001, cand1, cand-11, etc.)
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
     
-    const normalizedInput = loginId.trim().toUpperCase();
-    // Validates CAND-001 through CAND-020 or CAND-1 through CAND-20
-    const candidateIdRegex = /^CAND-(0?[1-9]|1[0-9]|20)$/;
+    // Clean input: remove spaces, convert to uppercase
+    const cleanInput = loginId.trim().toUpperCase();
 
-    if (candidateIdRegex.test(normalizedInput)) {
-      // Format standard ID padding (e.g., CAND-001, CAND-015)
-      const numberPart = normalizedInput.split('-')[1].padStart(3, '0');
-      const formattedCandidateId = `CAND-${numberPart}`;
+    // Flexible regex matching prefixes CAND, CAND-, CAND_ or CAND followed by numbers 1-20
+    const match = cleanInput.match(/^CAND[-_\s]?0*([1-9]|1[0-9]|20)$/i);
 
-      // Derive candidate metadata dynamically based on ID
+    if (match) {
+      // Extract numeric ID (1 to 20)
+      const num = parseInt(match[1], 10);
+      
+      // Standardize format into 3-digit candidate ID: CAND-001 through CAND-020
+      const formattedCandidateId = `CAND-${num.toString().padStart(3, '0')}`;
+
+      // Set dynamic profile details
       const candidateName = formattedCandidateId === 'CAND-001' ? "Sarah Johnson" : `Candidate ${formattedCandidateId}`;
       
       const newProfile: CandidateProfile = {
@@ -142,7 +146,7 @@ export default function TechMentorAIDashboard() {
       setMessages([welcomeMsg]);
       speakText(welcomeMsg.text);
     } else {
-      alert('Invalid Candidate ID. Please enter a valid ID between CAND-001 and CAND-020.');
+      alert('Invalid Candidate ID. Please enter any ID from CAND-001 to CAND-020 (e.g. cand-001, cand-009, cand-011, CAND-020).');
     }
   };
 
@@ -153,6 +157,7 @@ export default function TechMentorAIDashboard() {
     setMessages([]);
     setInputMessage('');
     setIsSpeaking(false);
+    setIsListening(false);
   };
 
   // Send Message Handler
@@ -171,7 +176,7 @@ export default function TechMentorAIDashboard() {
     setIsLoading(true);
 
     try {
-      // 1. Call Backend API with Dynamic Candidate Context Payload
+      // API payload dispatch with dynamic candidate details
       const res = await fetch('/api/interview', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -208,7 +213,7 @@ export default function TechMentorAIDashboard() {
     } catch (err) {
       console.error("Backend dispatch error:", err);
       
-      // Fallback response if API endpoint fails
+      // Local fallback response
       const fallbackMsg: Message = {
         sender: 'agent',
         text: `I received your response, ${candidate.name}! Let's build on that: How do you handle vector database indexing strategies during heavy real-time write loads?`,
@@ -283,7 +288,7 @@ export default function TechMentorAIDashboard() {
                   type="text"
                   value={loginId}
                   onChange={(e) => setLoginId(e.target.value)}
-                  placeholder="Enter Candidate ID (e.g. CAND-001 to CAND-020)"
+                  placeholder="Enter Candidate ID (e.g. cand-001 to CAND-020)"
                   className="w-full bg-slate-800/90 border border-slate-700 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-cyan-500 font-mono"
                   required
                 />
