@@ -176,8 +176,8 @@ export default function TechMentorAIDashboard() {
     setIsLoading(true);
 
     try {
-      // API payload dispatch with dynamic candidate details
-      const res = await fetch('/api/interview', {
+      // Direct call to Render Live Backend API
+      const res = await fetch('https://evalai-2.onrender.com/api/interview', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
